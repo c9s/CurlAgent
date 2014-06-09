@@ -2,8 +2,9 @@
 namespace CurlAgent;
 
 define('CRLF', "\r\n");
+use ArrayAccess;
 
-class CurlAgent {
+class CurlAgent implements ArrayAccess {
 
     public $cookieFile;
 
@@ -21,11 +22,11 @@ class CurlAgent {
 
     public $proxyAuth;
 
+    protected $_curlOptions = array();
+
     public function __construct() {
         $this->cookieFile = tempnam("/tmp", str_replace('\\','_',get_class($this)) . mt_rand());
     }
-
-
 
     /**
      * Set Proxy
@@ -47,6 +48,10 @@ class CurlAgent {
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $this->sslVerifypeer);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $this->followLocation);
+
+        foreach( $this->_curlOptions as $k => $v) {
+            curl_setopt($ch, $k, $v);
+        }
 
         if ( $this->proxy ) {
             curl_setopt($ch, CURLOPT_HTTPPROXYTUNNEL, 0);
@@ -172,4 +177,28 @@ class CurlAgent {
             unlink($this->cookieFile);
         }
     }
+
+
+    
+    public function offsetSet($name,$value)
+    {
+        $this->_curlOptions[ $name ] = $value;
+    }
+    
+    public function offsetExists($name)
+    {
+        return isset($this->_curlOptions[ $name ]);
+    }
+    
+    public function offsetGet($name)
+    {
+        return $this->_curlOptions[ $name ];
+    }
+    
+    public function offsetUnset($name)
+    {
+        unset($this->_curlOptions[$name]);
+    }
+
 }
+
