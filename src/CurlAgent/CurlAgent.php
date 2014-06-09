@@ -17,8 +17,26 @@ class CurlAgent {
 
     public $userAgent;
 
+    public $proxy;
+
+    public $proxyAuth;
+
     public function __construct() {
         $this->cookieFile = tempnam("/tmp", str_replace('\\','_',get_class($this)) . mt_rand());
+    }
+
+
+
+    /**
+     * Set Proxy
+     *
+     * @param string $proxy this parameter is a string in 127.0.0.1:8888 format.
+     */
+    public function setProxy($proxy, $auth = null) {
+        $this->proxy = $proxy;
+        if ($auth) {
+            $this->proxyAuth = $auth;
+        }
     }
 
     protected function _createCurlInstance() {
@@ -29,6 +47,14 @@ class CurlAgent {
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $this->sslVerifypeer);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $this->followLocation);
+
+        if ( $this->proxy ) {
+            curl_setopt($ch, CURLOPT_HTTPPROXYTUNNEL, 0);
+            curl_setopt($ch, CURLOPT_PROXY, $this->proxy);
+            if ( $this->proxyAuth ) {
+                curl_setopt($ch, CURLOPT_PROXYUSERPWD, $this->proxyAuth);
+            }
+        }
 
         if ( $this->userAgent ) {
             curl_setopt($ch, CURLOPT_USERAGENT, $this->userAgent );
@@ -87,7 +113,7 @@ class CurlAgent {
     }
 
 
-    public function requestGet($url, $fields = array(), $headers = array() ) {
+    public function get($url, $fields = array(), $headers = array() ) {
         $fieldsString = $this->_encodeFields($fields);
 
         if ( !empty($fields) ) {
@@ -101,14 +127,20 @@ class CurlAgent {
         curl_setopt($ch, CURLOPT_FAILONERROR, true); 
 
         $ret = null;
-        if ( $response = curl_exec($ch) ) {
+        $result = curl_exec($ch);
+        if ( $result ) {
             if ( $this->receiveHeader ) {
-                return $this->_separateResponse($ch, $response);
+                $ret = $this->_separateResponse($ch, $result);
+                curl_close($ch);
+                return $ret;
             }
-            return $ret;
+            curl_close($ch);
+            return $result;
+        } else {
+            trigger_error(curl_error($ch)); 
+            curl_close($ch);
+            return FALSE;
         }
-        curl_close($ch);
-        return $ret;
     }
 
     public function requestPost($url, $fields = array() , $headers = array() ) {
