@@ -1,7 +1,7 @@
 {
     "name": "corneltek\/curl-agent",
     "description": "Curl Agent Classes",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "require": {
         "php": ">=5.3.0"
     },
@@ -10,7 +10,7 @@
     },
     "autoload": {
         "psr-4": {
-            "CurlAgent\\": "src/CurlAgent/"
+            "CurlAgent\\": "src\/CurlAgent\/"
         }
     }
 }
