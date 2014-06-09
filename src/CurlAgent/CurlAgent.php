@@ -148,7 +148,7 @@ class CurlAgent implements ArrayAccess {
         }
     }
 
-    public function requestPost($url, $fields = array() , $headers = array() ) {
+    public function post($url, $fields = array() , $headers = array() ) {
         $fieldsString = $this->_encodeFields($fields);
         $ch = $this->_createCurlInstance();
         curl_setopt($ch, CURLOPT_URL, $url);
