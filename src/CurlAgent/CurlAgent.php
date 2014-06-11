@@ -168,8 +168,12 @@ class CurlAgent implements ArrayAccess {
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->connectionTimeout );
         }
 
+
+        curl_setopt($ch, CURLINFO_HEADER_OUT, true );
+        curl_setopt($ch, CURLOPT_STDERR, STDERR);
+
         if ( $this->proxy ) {
-            curl_setopt($ch, CURLOPT_HTTPPROXYTUNNEL, 0);
+            curl_setopt($ch, CURLOPT_HTTPPROXYTUNNEL, 1);
             curl_setopt($ch, CURLOPT_PROXY, $this->proxy);
             if ( $this->proxyAuth ) {
                 curl_setopt($ch, CURLOPT_PROXYUSERPWD, $this->proxyAuth);
