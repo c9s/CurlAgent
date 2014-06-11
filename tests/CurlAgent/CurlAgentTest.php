@@ -17,7 +17,7 @@ class CurlAgentTest extends PHPUnit_Framework_TestCase
         $agent = new CurlAgent\CurlAgent;
         ok($agent);
 
-        $response = $agent->get('http://stackoverflow.com/questions/11297320/using-a-try-catch-with-curl-in-php');
+        $response = $agent->get('https://stackoverflow.com/questions/11297320/using-a-try-catch-with-curl-in-php');
         ok($response);
         ok($response->body);
         ok($response->headers);
@@ -27,11 +27,10 @@ class CurlAgentTest extends PHPUnit_Framework_TestCase
     public function testProxy() {
         $agent = new CurlAgent\CurlAgent;
         $agent->setProxy('106.187.96.49:3128');
-        $response = $agent->get('http://stackoverflow.com/questions/11297320/using-a-try-catch-with-curl-in-php');
+        $response = $agent->get('https://stackoverflow.com/questions/11297320/using-a-try-catch-with-curl-in-php');
         ok($response);
         ok($response->body);
         ok($response->headers);
-        ok(is_array($response->headers));
     }
 }
 
