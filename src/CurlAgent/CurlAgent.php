@@ -1,9 +1,10 @@
 <?php
 namespace CurlAgent;
 
-define('CRLF', "\r\n");
 use ArrayAccess;
+use Exception;
 
+define('CRLF', "\r\n");
 
 /**
  * new CurlException(msg, code);
@@ -15,6 +16,65 @@ class CurlException extends Exception {
         parent::__construct(curl_error($ch), curl_errno($ch));
         curl_close($ch); // close and free the resource
     }
+}
+
+class CurlResponse { 
+
+    public $rawHeaderBody;
+
+    public $headers = array();
+
+    public $body;
+
+    public function __construct($body, $rawHeaderBody = null) {
+        $this->body = $body;
+        if ( $rawHeaderBody ) {
+            $this->rawHeaderBody = $rawHeaderBody;
+            $this->headers = $this->parseHttpHeader($rawHeaderBody);
+        }
+    }
+
+    public static function createFromRawResponse($ch, $rawResponse) {
+        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $rawHeader  = substr($rawResponse, 0, $headerSize);
+        $body       = substr($rawResponse, $headerSize);
+        return new self($body, $rawHeader);
+    }
+
+    public function hasHeader($field) {
+        return isset($this->headers[$field]);
+    }
+
+    public function getHeader($field) {
+        if ( isset($this->headers[$field]) ) {
+            return $this->headers[$field];
+        }
+    }
+
+    public function parseHttpHeader($rawHeaderBody) {
+        $headers = array();
+        $lines   = explode("\r\n", $rawHeaderBody);
+        $status  = array_shift($lines);
+        foreach( $lines as $line ) {
+            if ( trim($line) ) {
+                list($key, $value) = explode(': ', $line);
+                $headers[strtolower($key)] = $value;
+            }
+        }
+        return $headers;
+    }
+
+    public function decodeBody() {
+        if ($contentType = $this->getHeader('content-type') ) {
+            // Content-Type: application/json; charset=utf-8
+            if ( strpos($contentType, 'application/json') !== false ||  strpos($contentType, 'text/json') !== false  ) {
+                // over-write the text body with our decoded json object
+                return json_decode($this->body);
+            }
+        }
+        return $this->body;
+    }
+
 }
 
 class CurlAgent implements ArrayAccess {
@@ -62,6 +122,33 @@ class CurlAgent implements ArrayAccess {
     public function setConnectionTimeout($secs) {
         $this->connectionTimeout = $secs;
     }
+
+
+
+    protected function _handleCurlError($ch) {
+        if ( $this->throwException ) {
+            // the CurlException close the curl response automatically
+            throw new CurlException($ch);
+        }
+        return FALSE;
+    }
+
+    protected function _handleCurlResponse($ch, $rawResponse) {
+        $ret = null;
+        if ($rawResponse) {
+            if ( $this->receiveHeader ) {
+                $ret = CurlResponse::createFromRawResponse($ch, $rawResponse);
+            } else {
+                $ret = new CurlResponse($rawResponse);
+            }
+        } else {
+            $ret = $this->_handleCurlError($ch);
+        }
+        curl_close($ch);
+        return $ret;
+    }
+
+
 
     protected function _createCurlInstance() {
         $ch = curl_init();
@@ -115,41 +202,12 @@ class CurlAgent implements ArrayAccess {
         return explode( CRLF . CRLF, $response);
     }
 
-    protected function _parseHttpHeader($headerBody) {
-        $headers = array();
-        $lines   = explode("\r\n", $headerBody);
-        $status  = array_shift($lines);
-        foreach( $lines as $line ) {
-            if ( trim($line) ) {
-                list($key, $value) = explode(': ', $line);
-                $headers[strtolower($key)] = $value;
-            }
-        }
-        return $headers;
-    }
-
-    protected function _separateResponse($ch, $response) {
+    protected function _separateResponse($ch, $rawResponse) {
         $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-        $header     = substr($response, 0, $headerSize);
-        $body       = substr($response, $headerSize);
-
-        $headers = $this->_parseHttpHeader($header);
-
-        if ( isset($headers['content-type']) ) {
-            // Content-Type: application/json; charset=utf-8
-            if ( strpos($headers['content-type'], 'application/json') !== false ) {
-                // over-write the text body with our decoded json object
-                $body = json_decode($body);
-            }
-        }
-
-
-        return array(
-            'body' => $body,
-            'header' => $header,
-        );
+        $rawHeader  = substr($rawResponse, 0, $headerSize);
+        $body       = substr($rawResponse, $headerSize);
+        return new CurlResponse($body, $rawHeader);
     }
-
 
     public function get($url, $fields = array(), $headers = array() ) {
         $fieldsString = $this->_encodeFields($fields);
@@ -164,25 +222,8 @@ class CurlAgent implements ArrayAccess {
         curl_setopt($ch, CURLOPT_POSTFIELDS, $fieldsString);
         curl_setopt($ch, CURLOPT_FAILONERROR, true); 
 
-        $ret = null;
-        $result = curl_exec($ch);
-        if ( $result ) {
-            if ( $this->receiveHeader ) {
-                $ret = $this->_separateResponse($ch, $result);
-                curl_close($ch);
-                return $ret;
-            }
-            curl_close($ch);
-            return $result;
-        }
-        // curl error code
-        // int curl_errno($ch);
-        if ( $this->throwException ) {
-            throw new CurlException($ch);
-        }
-
-        curl_close($ch);
-        return FALSE;
+        $rawResponse = curl_exec($ch);
+        return $this->_handleCurlResponse($ch, $rawResponse);
     }
 
     public function post($url, $fields = array() , $headers = array() ) {
@@ -197,16 +238,8 @@ class CurlAgent implements ArrayAccess {
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         }
 
-
-        $ret = null;
-        if ( $response = curl_exec($ch) ) {
-            if ( $this->receiveHeader ) {
-                return $this->_separateResponse($ch, $response);
-            }
-            return $ret;
-        }
-        curl_close($ch);
-        return $ret;
+        $rawResponse = curl_exec($ch);
+        return $this->_handleCurlResponse($ch, $rawResponse);
     }
 
     public function __destruct() {
