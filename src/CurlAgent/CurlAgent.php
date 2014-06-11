@@ -4,7 +4,22 @@ namespace CurlAgent;
 define('CRLF', "\r\n");
 use ArrayAccess;
 
+
+/**
+ * new CurlException(msg, code);
+ */
+class CurlException extends Exception {
+
+    // http://curl.haxx.se/libcurl/c/libcurl-errors.html
+    public function __construct($ch) {
+        parent::__construct(curl_error($ch), curl_errno($ch));
+        curl_close($ch); // close and free the resource
+    }
+}
+
 class CurlAgent implements ArrayAccess {
+
+    public $throwException = true;
 
     public $cookieFile;
 
@@ -21,6 +36,10 @@ class CurlAgent implements ArrayAccess {
     public $proxy;
 
     public $proxyAuth;
+
+    public $connectionTimeout = 30;
+
+    public $failOnError = true;
 
     protected $_curlOptions = array();
 
@@ -40,6 +59,10 @@ class CurlAgent implements ArrayAccess {
         }
     }
 
+    public function setConnectionTimeout($secs) {
+        $this->connectionTimeout = $secs;
+    }
+
     protected function _createCurlInstance() {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_COOKIEJAR,  $this->cookieFile);
@@ -49,8 +72,13 @@ class CurlAgent implements ArrayAccess {
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $this->sslVerifypeer);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $this->followLocation);
 
-        foreach( $this->_curlOptions as $k => $v) {
-            curl_setopt($ch, $k, $v);
+
+        curl_setopt($ch, CURLOPT_FAILONERROR, $this->failOnError);
+
+        // curl_setopt($this->curl, CURLOPT_WRITEFUNCTION, array($this, "curl_handler_recv")); 
+
+        if ($this->connectionTimeout)  {
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->connectionTimeout );
         }
 
         if ( $this->proxy ) {
@@ -67,6 +95,11 @@ class CurlAgent implements ArrayAccess {
         if ( $this->receiveHeader ) {
             curl_setopt($ch, CURLOPT_HEADER, true);
         }
+
+        foreach( $this->_curlOptions as $k => $v) {
+            curl_setopt($ch, $k, $v);
+        }
+
         return $ch;
     }
 
@@ -141,11 +174,15 @@ class CurlAgent implements ArrayAccess {
             }
             curl_close($ch);
             return $result;
-        } else {
-            trigger_error(curl_error($ch)); 
-            curl_close($ch);
-            return FALSE;
         }
+        // curl error code
+        // int curl_errno($ch);
+        if ( $this->throwException ) {
+            throw new CurlException($ch);
+        }
+
+        curl_close($ch);
+        return FALSE;
     }
 
     public function post($url, $fields = array() , $headers = array() ) {
