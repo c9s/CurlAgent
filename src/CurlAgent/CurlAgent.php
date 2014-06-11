@@ -56,9 +56,9 @@ class CurlResponse {
         $lines   = explode("\r\n", $rawHeaderBody);
         $status  = array_shift($lines);
         foreach( $lines as $line ) {
-            if ( trim($line) ) {
-                list($key, $value) = explode(': ', $line);
-                $headers[strtolower($key)] = $value;
+            if ( strpos($line,':') !== false ) {
+                list($key, $value) = explode(':', $line);
+                $headers[strtolower($key)] = trim($value);
             }
         }
         return $headers;
