@@ -5,19 +5,6 @@ use Exception;
 
 define('CRLF', "\r\n");
 
-/**
- * new CurlException(msg, code);
- */
-class CurlException extends Exception {
-
-    // http://curl.haxx.se/libcurl/c/libcurl-errors.html
-    public function __construct($ch) {
-        parent::__construct(curl_error($ch), curl_errno($ch));
-        curl_close($ch); // close and free the resource
-    }
-}
-
-
 class CurlAgent implements ArrayAccess {
 
     public $throwException = true;
