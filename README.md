@@ -5,6 +5,9 @@ Simple Curl interface that allows you to operate HTTP requests / responses easil
 
 ```php
 $agent = new CurlAgent\CurlAgent;
+$agent->setProxy('host:port');
+$agent->setConnectionTimeout(30); // 30 seconds timeout
+
 try {
 
     // simply send POST and GET request
