@@ -141,9 +141,18 @@ class CurlAgent implements ArrayAccess {
             } else {
                 $ret = new CurlResponse($rawResponse);
             }
+
+            if (getenv('DEBUG_RESPONSE')) {
+                echo "RESPONSE:\n";
+                print_r($ret->decodeBody());
+            }
+
         } else {
             $ret = $this->_handleCurlError($ch);
         }
+
+
+
         curl_close($ch);
         return $ret;
     }
@@ -223,9 +232,11 @@ class CurlAgent implements ArrayAccess {
         curl_setopt($ch, CURLOPT_POST, count($fields));
         curl_setopt($ch, CURLOPT_POSTFIELDS, $fieldsString);
         curl_setopt($ch, CURLOPT_FAILONERROR, true); 
-
-        $rawResponse = curl_exec($ch);
-        return $this->_handleCurlResponse($ch, $rawResponse);
+        if ( getenv('DEBUG_REQUEST') ) {
+            echo "REQUEST:\n";
+            print_r($fields);
+        }
+        return $this->executeRequest($ch);
     }
 
     public function post($url, $fields = array() , $headers = array() ) {
@@ -236,13 +247,22 @@ class CurlAgent implements ArrayAccess {
         curl_setopt($ch, CURLOPT_POSTFIELDS, $fieldsString);
         curl_setopt($ch, CURLOPT_FAILONERROR, true); 
 
+        if ( getenv('DEBUG_REQUEST') ) {
+            echo "REQUEST:\n";
+            print_r($fields);
+        }
         if ( ! empty($headers) ) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         }
+        return $this->executeRequest($ch);
+    }
 
+
+    public function executeRequest($ch) {
         $rawResponse = curl_exec($ch);
         return $this->_handleCurlResponse($ch, $rawResponse);
     }
+
 
     public function __destruct() {
         if( file_exists($this->cookieFile) ) {
