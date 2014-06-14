@@ -12,7 +12,7 @@ class CurlAgentTest extends PHPUnit_Framework_TestCase
         $response = $agent->get('http://does.not.exist');
     }
 
-    public function test()
+    public function testGet()
     {
         $agent = new CurlAgent\CurlAgent;
         ok($agent);

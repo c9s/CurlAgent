@@ -129,14 +129,6 @@ class CurlAgent implements ArrayAccess {
         return $ch;
     }
 
-    protected function _encodeFields(& $fields) {
-        $fieldsString = '';
-        foreach( $fields as $key => $value ) { 
-            $fieldsString .= $key.'='. urlencode($value) .'&'; 
-        }
-        return rtrim($fieldsString, '&');
-    }
-
     protected function _readResponseBody($response) {
         return explode( CRLF . CRLF, $response);
     }
@@ -149,46 +141,33 @@ class CurlAgent implements ArrayAccess {
     }
 
     public function get($url, $fields = array(), $headers = array() ) {
-        $fieldsString = $this->_encodeFields($fields);
-
-        if ( !empty($fields) ) {
-            $url = $url . '?' . http_build_query($fields);
-        }
-
         $ch = $this->_createCurlInstance();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_POST, count($fields));
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $fieldsString);
-        curl_setopt($ch, CURLOPT_FAILONERROR, true); 
+        $request = new CurlRequest($url, 'GET', $fields, $headers);
+        $request->applyCurlResource($ch);
         if ( getenv('DEBUG_REQUEST') ) {
             echo "REQUEST:\n";
             print_r($fields);
         }
-        return $this->executeRequest($ch);
+        return $this->sendRequest($request);
     }
 
     public function post($url, $fields = array() , $headers = array() ) {
-        $fieldsString = $this->_encodeFields($fields);
         $ch = $this->_createCurlInstance();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_POST, count($fields));
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $fieldsString);
-        curl_setopt($ch, CURLOPT_FAILONERROR, true); 
-
+        $request = new CurlRequest($url, 'POST', $fields, $headers);
+        $request->applyCurlResource($ch);
         if ( getenv('DEBUG_REQUEST') ) {
             echo "REQUEST:\n";
             print_r($fields);
         }
-        if ( ! empty($headers) ) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        }
-        return $this->executeRequest($ch);
+        return $this->sendRequest($request);
     }
 
 
-    public function executeRequest($ch) {
-        $rawResponse = curl_exec($ch);
-        return $this->_handleCurlResponse($ch, $rawResponse);
+    public function sendRequest($request) {
+        $rawResponse = $request->send();
+        $response = $this->_handleCurlResponse($request->curlResource, $rawResponse);
+        $request->setResponse($response);
+        return $response;
     }
 
 

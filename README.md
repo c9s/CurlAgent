@@ -40,3 +40,16 @@ try {
     // handle exception here
 }
 ```
+
+CurlRequest
+--------------------
+
+```php
+$req = new CurlRequest('http://path/to/page.html', 'GET', [ parameters ... ], [ 'Content-Type' => '...' ]);
+$response = $agent->sendRequest($req);
+```
+
+
+
+
+
